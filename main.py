@@ -1,8 +1,10 @@
-import torch
+import csv
 import os
+from datetime import datetime
+
+import torch
 from PIL import Image
-from pprint import pprint
-from torchvision.models import mobilenet_v2, MobileNet_V2_Weights
+from torchvision.models import MobileNet_V2_Weights, mobilenet_v2
 
 
 class ClassificatorImages:
@@ -27,7 +29,7 @@ class ClassificatorImages:
         self.image_list = image_list
         return image_list
 
-    def classify_image(self, image_path):
+    def classify_image(self, image_path, top_k=3):
         """
         Классифицирует одно изображение и возвращает класс
         из MobileNet_V2_Weights.DEFAULT.meta["categories"].
@@ -38,19 +40,16 @@ class ClassificatorImages:
             with torch.no_grad():
                 output = self.model(img_t)
             probabilities = torch.nn.functional.softmax(output[0], dim=0)
-            best_prob, best_idx = torch.topk(probabilities, 1)
-            class_index = best_idx.item()
-            class_name = self.classify_classes[class_index]
-            confidence = best_prob.item()
-            return {'class_name': class_name,       # Конкретный класс из 1000
-                    'class_index': class_index,     # Номер класса (0-999)
-                    'confidence': confidence}       # вероятность (0-1)
-
+            top_probs, top_indices = torch.topk(probabilities,
+                                                min(top_k, len(probabilities)))
+            results = []
+            for i in range(len(top_indices)):
+                class_index = top_indices[i].item()
+                results.append(self.classify_classes[class_index])
+            return results
         except Exception as e:
             print(f'Ошибка при обработке {image_path}: {e}')
-            return {'class_name': 'error',
-                    'class_index': -1,
-                    'confidence': 0.0}
+            return {'class_name': 'error'}
 
     def classify_all_images(self):
         """
@@ -61,6 +60,32 @@ class ClassificatorImages:
             result = self.classify_image(f'./media/{img}')
             self.classification_result[img] = result
         return self.classification_result
+
+    def save_to_csv(self, filename=None):
+        """Сохраняет результаты классификации в CSV файл."""
+        if not self.classification_result:
+            print('Нет данных для сохранения. Сначала выполните классификацию.')
+            return False
+        if filename is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"classification_results_{timestamp}.csv"
+        try:
+            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['Image Name',
+                                 'Class1',
+                                 'Class2',
+                                 'Class3'])
+                for image_name, predictions in self.classification_result.items():
+                    writer.writerow([image_name,
+                                     predictions[0],
+                                     predictions[1],
+                                     predictions[2]])
+            print(f'Результаты сохранены в файл: {filename}')
+            return True
+        except Exception as e:
+            print(f'Ошибка при сохранении в CSV: {e}')
+            return False
 
 
 if __name__ == '__main__':
@@ -73,4 +98,4 @@ if __name__ == '__main__':
         print(f'Ошибка: {e}')
     else:
         my_classificator.classify_all_images()          # классифицируем все собранные изображения
-        pprint(my_classificator.classification_result)  # распечатываем результат работы классификатора
+        my_classificator.save_to_csv()                  # охраняем результат в csv-файл
