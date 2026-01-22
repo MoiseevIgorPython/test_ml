@@ -76,11 +76,11 @@ class ClassificatorImages:
                                  'Class1',
                                  'Class2',
                                  'Class3'])
-                for image_name, predictions in self.classification_result.items():
+                for image_name, classes in self.classification_result.items():
                     writer.writerow([image_name,
-                                     predictions[0],
-                                     predictions[1],
-                                     predictions[2]])
+                                     classes[0],
+                                     classes[1],
+                                     classes[2]])
             print(f'Результаты сохранены в файл: {filename}')
             return True
         except Exception as e:
