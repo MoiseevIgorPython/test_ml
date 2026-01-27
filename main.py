@@ -77,10 +77,8 @@ class ClassificatorImages:
                                  'Class2',
                                  'Class3'])
                 for image_name, classes in self.classification_result.items():
-                    writer.writerow([image_name,
-                                     classes[0],
-                                     classes[1],
-                                     classes[2]])
+                    padded_classes = (classes + ['', '', ''])[:3]
+                    writer.writerow([image_name] + padded_classes)
             print(f'Результаты сохранены в файл: {filename}')
             return True
         except Exception as e:
